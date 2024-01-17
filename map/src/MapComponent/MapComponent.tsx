@@ -3,6 +3,12 @@ import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
 import { collection, getDocs, doc, setDoc, serverTimestamp, GeoPoint } from 'firebase/firestore';
 import { db } from '../firebase/firebase';
 
+interface MarkerData {
+    id: number;
+    position: { lat: number; lng: number };
+    timestamp?: Date;
+}
+
 const mapContainerStyle: React.CSSProperties = {
     width: '90vw',
     height: '100vh',
@@ -12,16 +18,27 @@ const mapContainerStyle: React.CSSProperties = {
 };
 
 const MapContent: React.FC = () => {
-    const [markers, setMarkers] = useState<any[]>([]);
+    const [markers, setMarkers] = useState<MarkerData[]>([]);
     const [nextQuest, setNextQuest] = useState<number>(1);
     const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number }>({ lat: 0, lng: 0 });
 
     useEffect(() => {
         const fetchMarkers = async () => {
             try {
-                const snapshot = await getDocs(collection(db, 'quests'));
-                const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+                const snapshot = await getDocs(collection(db, 'markers'));
+                const data = snapshot.docs.map((doc) => ({
+                    id: Number(doc.id.replace('Quest', '')),
+                    position: {
+                        lat: doc.data().location.latitude,
+                        lng: doc.data().location.longitude,
+                    },
+                    timestamp: doc.data().timestamp.toDate(),
+                }));
                 setMarkers(data);
+
+                // Update nextQuest based on the maximum id in the existing markers
+                const maxId = data.length > 0 ? Math.max(...data.map((marker) => marker.id)) : 0;
+                setNextQuest(maxId + 1);
             } catch (error) {
                 console.error('Error fetching markers from Firebase:', error);
             }
@@ -32,7 +49,7 @@ const MapContent: React.FC = () => {
 
     const handleMapClick = (e: google.maps.MapMouseEvent) => {
         if (e.latLng) {
-            const newMarker = {
+            const newMarker: MarkerData = {
                 id: nextQuest,
                 position: { lat: e.latLng.lat(), lng: e.latLng.lng() },
                 timestamp: new Date(),
@@ -57,13 +74,13 @@ const MapContent: React.FC = () => {
 
     const handleDeleteAllMarkers = () => {
         setMarkers([]);
-        setNextQuest(1); // Скидаємо лічильник nextQuest при видаленні всіх міток
+        // Do not reset nextQuest to 1 here
     };
 
     const handleSaveToFirebase = async () => {
         markers.forEach(async (marker) => {
             if (marker.position) {
-                const docRef = doc(db, 'quests', `Quest${marker.id}`);
+                const docRef = doc(db, 'markers', `Quest${marker.id}`);
                 await setDoc(docRef, {
                     location: new GeoPoint(marker.position.lat, marker.position.lng),
                     timestamp: serverTimestamp(),
@@ -73,7 +90,7 @@ const MapContent: React.FC = () => {
     };
 
     return (
-        <LoadScript googleMapsApiKey={'AIzaSyDBdTX4lgk9yx_XNjYvWAnFnGmxCB-t2RI' || ''}>
+        <LoadScript googleMapsApiKey={'AIzaSyDBdTX4lgk9yx_XNjYvWAnFnGmxCB-t2RI'}>
             <GoogleMap
                 mapContainerStyle={mapContainerStyle}
                 center={mapCenter}
@@ -85,9 +102,7 @@ const MapContent: React.FC = () => {
                         key={marker.id}
                         position={marker.position}
                         draggable
-                        onDragEnd={(event) =>
-                            handleMarkerDragEnd(marker.id, event.latLng!.toJSON())
-                        }
+                        onDragEnd={(event) => handleMarkerDragEnd(marker.id, event.latLng!.toJSON())}
                         onClick={() => handleDeleteMarker(marker.id)}
                         label={String(marker.id)}
                     />
@@ -104,4 +119,5 @@ const MapContent: React.FC = () => {
         </LoadScript>
     );
 };
+
 export default MapContent;
