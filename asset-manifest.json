@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/MapTask/static/css/main.3c0cf31a.css",
+    "main.js": "/MapTask/static/js/main.2b9e6fba.js",
+    "index.html": "/MapTask/index.html",
+    "main.3c0cf31a.css.map": "/MapTask/static/css/main.3c0cf31a.css.map",
+    "main.2b9e6fba.js.map": "/MapTask/static/js/main.2b9e6fba.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.3c0cf31a.css",
+    "static/js/main.2b9e6fba.js"
+  ]
+}
